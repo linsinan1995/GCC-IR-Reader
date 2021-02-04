@@ -1,3 +1,13 @@
+/*
+ * @Author: Lin Sinan
+ * @Github: https://github.com/linsinan1995
+ * @Email: mynameisxiaou@gmail.com
+ * @LastEditors: Lin Sinan
+ * @Description: 
+ *               
+ *               
+ *               
+ */
 int fun (int a, int b);
 int m = 10;
 
@@ -16,5 +26,3 @@ int fun (int a, int b)
     c = a + b;
     return c;
 }
-
-

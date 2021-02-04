@@ -7,16 +7,11 @@
 import PySimpleGUI as sg
 import os
 import pathlib
+from handler.config import * 
 from handler.handlers import *
 
 # global variables => for easier configuration
-sg.ChangeLookAndFeel('BrownBlue')
-
-default_compiler = "riscv64-unknown-elf-gcc"
-default_demangler = "riscv64-unknown-elf-c++filt"
-
-WIN_W = 90
-WIN_H = 25
+sg.ChangeLookAndFeel(theme_color)
 
 class Config:
     def __init__(self):
@@ -37,6 +32,9 @@ class Info:
 
     def get_output_dir(self):
         return "data/{}/".format(self.get_filename())
+
+    def set_not_modified(self):
+        self.file_not_modified = True
 
     def file_is_modified(self):
         self.file_not_modified = False
@@ -61,7 +59,10 @@ class Info:
         self.window[key].update(value = val)
     
     def query_window(self, key):
-        return self.window.read()[1][key]
+        if self.window is not None:
+            return self.window.read()[1][key] 
+        else:
+            return None
 
     def get_compiler(self):
         return self.config.CC
@@ -106,6 +107,10 @@ class Handlers:
             else:
                 if handler(event, self.info):
                     return
+        # we assume that if the there is an unrecognize event, 
+        # the source file is edited, except mousewheel
+        if "MouseWheel" not in event:
+            info.file_not_modified = False
 
 if "__main__" == __name__:
     # Layout of gui menu
@@ -151,39 +156,31 @@ if "__main__" == __name__:
             sg.Menu(menu_layout)
         ],
         [
-            sg.Text('> Temp File <', 
-                    font=('Consolas', 8), 
-                    size=(int(WIN_W/2), 1), 
-                    key='_INFO_'
-            ), 
-            sg.Text('', 
-                    font=('Consolas', 10), 
-                    size=(int(WIN_W/2), 1), 
-                    key='_INFO_OUT_'
+            sg.Text(
+                '> Temp File <', 
+                font=('Consolas', 8), 
+                size=(WIN_W, 1), 
+                key='_INFO_'
             )
         ],
         [
-            sg.Multiline(font=('Consolas', 12), 
-                         size=(int(WIN_W/2), WIN_H), 
-                         key='_BODY_'
-                        ), 
-            sg.Multiline(font=('Consolas', 12), 
-                         size=(int(WIN_W/2), WIN_H),
-                         disabled=True, 
-                         key='_BODY_OUT_'
-                        )
+            sg.Multiline(
+                font=('Consolas', 12), 
+                size=(WIN_W, WIN_H), 
+                key='_BODY_'
+            )
         ]
     ]
 
     # initialize main window
-    window = sg.Window('Notepad', layout=body_layout, margins=(0, 0), resizable=True, return_keyboard_events=True, finalize=True)
-    window['_BODY_'].expand(expand_x=True, expand_y=True)
+    main_window = sg.Window('GCC Analyzer', layout=body_layout, margins=(0, 0), resizable=True, return_keyboard_events=True, finalize=True)
+    main_window['_BODY_'].expand(expand_x=True, expand_y=True)
 
     # initialize configure
     config = Config()
 
     # initialize resource manager
-    info = Info(config, None, window)
+    info = Info(config, None, main_window)
 
     # initialzie handler
     handler = Handlers(info)

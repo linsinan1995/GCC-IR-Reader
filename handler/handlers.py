@@ -10,15 +10,34 @@ Description:
 '''
 import PySimpleGUI as sg
 import pathlib
+from handler.config import * 
+
+def sg_show_scrollable_text(buf, name):
+    layout = [ 
+                [
+                    sg.Multiline(
+                        buf.read_text(),
+                        font=('Consolas', 12),
+                        size=(WIN_W * 3 // 4, WIN_H * 3 // 4), 
+                        disabled=True,
+                        background_color=sg.LOOK_AND_FEEL_TABLE[theme_color]['BACKGROUND'],
+                        text_color=sg.LOOK_AND_FEEL_TABLE[theme_color]['TEXT'],
+                    )
+                ]
+             ]
+    sg.Window(name, layout, auto_size_buttons=True, grab_anywhere=True).read(timeout=10)
 
 def about_me(event, info):
     if event in ('About',):
-        sg.popup_no_wait('"All great things have small beginnings" - Peter Senge')
+        sg.popup("Nothing here", '"All great things have small beginnings" - Peter Senge')
         return True
     else:
         return False
 
 class Files:
+    # static member variable: store all extended types
+    file_types = (("C/C++ Source Code", src_type) for src_type in default_source_type)
+    
     @staticmethod
     def handle(event, info):
         '''Interface for handling events related to Files'''
@@ -43,26 +62,33 @@ class Files:
         info.update_window('_INFO_', '> Temp File <')
         info.update_file(None)
         info.file_is_modified()
+# , "*.c", "*.cc", "*.cxx"
 
     @staticmethod
     def open_file(info):
         '''Open _file and update the infobar'''
-        filename = sg.popup_get_file('Open')
+        filename = sg.popup_get_file('', no_window=True, file_types = Files.file_types)
         if filename:
             _file = pathlib.Path(filename)
             info.update_window('_BODY_', _file.read_text())
             info.update_window('_INFO_', _file.absolute())
             info.update_file(_file)
             Files.clean_output_cache(info.get_filename())
-            info.run_make("app")
+            info.set_not_modified()
 
     @staticmethod
     def save_file(info):
         '''Save _file instantly if already open; otherwise use `save-as` popup'''
         if info.get_file():
             info.write_to_file(info.query_window('_BODY_'))
+            info.set_not_modified()
         else:
+            my_file = info.get_file()
+            if my_file is None:
+                return
+                
             Files.save_file_as(info.get_filename())
+            info.set_not_modified()
 
     @staticmethod
     def save_file_as(info):
@@ -75,6 +101,7 @@ class Files:
             info.update_file(_file)
             Files.clean_output_cache(info.get_filename())
             info.file_is_modified()
+            info.set_not_modified()
 
     @staticmethod
     def clean_output_cache(filename):
@@ -137,7 +164,10 @@ class Tools:
             if my_file is None:
                 print("Can't handle temporary file!")
                 return True
-        
+
+            if info.file_is_modified:
+                info.run_make("app")
+
         if event in ('Dump assembly', ):
             Tools.handle_dump_assembly(event, info)
         elif event in ('Dump SSA', ):
@@ -160,8 +190,9 @@ class Tools:
         if not assembly_file.exists():
             print("Error in building from makefile")
             return
-        info.update_window(key = '_BODY_OUT_', val = assembly_file.read_text())
-        info.update_window(key = '_INFO_OUT_', val = "Assembly")
+        # sg.popup_non_blocking('Assembly', assembly_file.read_text())
+        sg_show_scrollable_text(assembly_file, 'Assembly')
+        
 
     @staticmethod
     def handle_dump_gimple(event, info):
@@ -170,8 +201,9 @@ class Tools:
         if not gimple_file.exists():
             print("Error in building from makefile")
             return
-        info.update_window(key = '_BODY_OUT_', val = gimple_file.read_text())
-        info.update_window(key = '_INFO_OUT_', val = "Gimple")
+        
+        sg_show_scrollable_text(gimple_file, 'Gimple')
+        # sg.popup_non_blocking('Gimple', gimple_file.read_text())
     
     @staticmethod
     def handle_dump_lower_gimple(event, info):
@@ -180,8 +212,9 @@ class Tools:
         if not gimple_file.exists():
             print("Error in building from makefile")
             return
-        info.update_window(key = '_BODY_OUT_', val = gimple_file.read_text())
-        info.update_window(key = '_INFO_OUT_', val = "Lower Gimple")
+        
+        sg_show_scrollable_text(gimple_file, 'Lower Gimple')
+        # sg.popup_non_blocking('Lower Gimple', gimple_file.read_text())
 
     @staticmethod
     def handle_dump_cfg(event, info):
@@ -190,8 +223,9 @@ class Tools:
         if not cfg_file.exists():
             print("Error in building from makefile")
             return
-        info.update_window(key = '_BODY_OUT_', val = cfg_file.read_text())
-        info.update_window(key = '_INFO_OUT_', val = "CFG")
+
+        sg_show_scrollable_text(cfg_file, 'CFG')
+        # sg.popup_non_blocking('CFG', cfg_file.read_text())
 
     @staticmethod
     def handle_dump_ssa(event, info):
@@ -199,5 +233,6 @@ class Tools:
         if not ssa_file.exists():
             print("Error in building SSA from makefile")
             return
-        info.update_window(key = '_BODY_OUT_', val = ssa_file.read_text())
-        info.update_window(key = '_INFO_OUT_', val = "SSA")
+
+        sg_show_scrollable_text(ssa_file, 'SSA')
+        # sg.popup_non_blocking('SSA', ssa_file.read_text())
