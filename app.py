@@ -1,14 +1,9 @@
-'''
-  A minimalist Notepad built with the PySimpleGUI TKinter framework
-  Author:     Israel Dryer
-  Email:      israel.dryer@gmail.com
-  Modified:   2020-06-20
-'''
 import PySimpleGUI as sg
 import os
 import pathlib
-from handler.config import * 
+from config import * 
 from handler.handlers import *
+from window.window import *
 
 # global variables => for easier configuration
 sg.ChangeLookAndFeel(theme_color)
@@ -17,10 +12,19 @@ class Config:
     def __init__(self):
         self.CC = default_compiler
         self.CXXFILT = default_demangler
+        self.CFLAGS = default_flags
+        self.ABI = default_abi
+        self.ARCH = default_arch
     def update_compiler(self, cc):
         self.CC = cc
     def update_demangler(self, dmgler):
         self.CXXFILT = dmgler
+    def update_flags(self, flags):
+        self.CFLAGS = flags
+    def update_arch(self, arch):
+        self.ARCH = arch
+    def update_flags(self, abi):
+        self.ABI = abi
 
 # class for managing resources, such as editing file, window, config
 class Info:
@@ -28,7 +32,11 @@ class Info:
         self.config = config
         self.file   = _file
         self.window = window
+        self.rtl_window = None
         self.file_not_modified = False
+
+    def load_rtl_window(self, window):
+        self.rtl_window = window
 
     def get_output_dir(self):
         return "data/{}/".format(self.get_filename())
@@ -37,6 +45,18 @@ class Info:
         self.file_not_modified = True
 
     def file_is_modified(self):
+        self.file_not_modified = False
+    
+    def update_abi(self, abi):
+        self.config.update_flags(abi)
+        self.file_not_modified = False
+    
+    def update_arch(self, arch):
+        self.config.update_arch(arch)
+        self.file_not_modified = False
+
+    def update_flags(self, flags):
+        self.config.update_flags(flags)
         self.file_not_modified = False
 
     def update_compiler(self, cc):
@@ -52,7 +72,22 @@ class Info:
         self.file_not_modified = False
 
     def window_track_event(self):
+        if self.rtl_window is not None:
+            event, value = self.rtl_window.read()
+            if event == 'RTL-Exit':
+                self.rtl_window.close()
+                self.rtl_window = None
+                return event
+            else:
+                if value is not None and value['RTL'] is not None:
+                    return value['RTL'][0]
+                else:
+                    self.rtl_window.close()
+                    self.rtl_window = None
+        
+        
         event, _ = self.window.read()
+
         return event
 
     def update_window(self, key, val):
@@ -63,12 +98,21 @@ class Info:
             return self.window.read()[1][key] 
         else:
             return None
-
+    
+    def get_abi(self):
+        return self.config.ABI
+    
+    def get_arch(self):
+        return self.config.ARCH
+    
     def get_compiler(self):
         return self.config.CC
 
     def get_demangler(self):
         return self.config.CXXFILT
+
+    def get_flags(self):
+        return self.config.CFLAGS
 
     def get_file(self):
         return self.file
@@ -81,10 +125,14 @@ class Info:
 
     def run_make(self, target):
         out_path = 'data/' + self.get_filename()
-        os.system("make %s CC=%s CXXFILT=%s FILE=%s SDIR=%s" % (
+
+        os.system("make %s CC=%s CXXFILT=%s CFLAGS=%s ABI=%s ARCH=%s FILE=%s SDIR=%s" % (
                 target, 
                 self.get_compiler(), 
                 self.get_demangler(), 
+                self.get_flags(), 
+                self.get_abi(), 
+                self.get_arch(), 
                 self.get_filename(),
                 out_path
             )
@@ -113,68 +161,10 @@ class Handlers:
             info.file_not_modified = False
 
 if "__main__" == __name__:
-    # Layout of gui menu
-    menu_layout = [
-        [
-            'File', 
-            [
-                'New (Ctrl+N)', 
-                'Open (Ctrl+O)', 
-                'Save (Ctrl+S)', 
-                'Save As', 
-                '---', 
-                'Exit'
-            ]
-        ],
-        [
-            'Configuration', 
-            [
-                'Edit Configure'
-            ]
-        ],
-        [
-            'Tools', 
-            [
-                'Dump high level GIMPLE',
-                'Dump low level GIMPLE', 
-                'Dump CFG',
-                'Dump SSA',
-                'Dump assembly',
-            ]
-        ],
-        [
-            'Help', 
-            [
-                'About'
-            ]
-        ]
-    ]
-
-    # Layout of gui body
-    body_layout = [
-        [
-            sg.Menu(menu_layout)
-        ],
-        [
-            sg.Text(
-                '> Temp File <', 
-                font=('Consolas', 8), 
-                size=(WIN_W, 1), 
-                key='_INFO_'
-            )
-        ],
-        [
-            sg.Multiline(
-                font=('Consolas', 12), 
-                size=(WIN_W, WIN_H), 
-                key='_BODY_'
-            )
-        ]
-    ]
+    
 
     # initialize main window
-    main_window = sg.Window('GCC Analyzer', layout=body_layout, margins=(0, 0), resizable=True, return_keyboard_events=True, finalize=True)
-    main_window['_BODY_'].expand(expand_x=True, expand_y=True)
+    main_window = window_factory.make_main_window("GCC Analyzer", main_window_layout)
 
     # initialize configure
     config = Config()
@@ -195,3 +185,4 @@ if "__main__" == __name__:
         if event is None:
             break
         handler.handle(event)
+        

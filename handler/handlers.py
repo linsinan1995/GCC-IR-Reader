@@ -10,22 +10,8 @@ Description:
 '''
 import PySimpleGUI as sg
 import pathlib
-from handler.config import * 
-
-def sg_show_scrollable_text(buf, name):
-    layout = [ 
-                [
-                    sg.Multiline(
-                        buf.read_text(),
-                        font=('Consolas', 12),
-                        size=(WIN_W * 3 // 4, WIN_H * 3 // 4), 
-                        disabled=True,
-                        background_color=sg.LOOK_AND_FEEL_TABLE[theme_color]['BACKGROUND'],
-                        text_color=sg.LOOK_AND_FEEL_TABLE[theme_color]['TEXT'],
-                    )
-                ]
-             ]
-    sg.Window(name, layout, auto_size_buttons=True, grab_anywhere=True).read(timeout=10)
+from config import * 
+from window.window import * 
 
 def about_me(event, info):
     if event in ('About',):
@@ -130,6 +116,18 @@ class Configuration:
                     sg.InputText(default_text = info.get_demangler())
                 ],
                 [
+                    sg.Text('CFLAG', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_flags())
+                ],
+                [
+                    sg.Text('ABI', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_abi())
+                ],
+                [
+                    sg.Text('ARCH', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_arch())
+                ],
+                [
                     sg.Button('Ok'), 
                     sg.Cancel()
                 ]
@@ -145,17 +143,25 @@ class Configuration:
 
     @staticmethod
     def handle_edit(info, configure_layout):
-        config_window = sg.Window('Configuration', configure_layout)
+        config_window = window_factory.make(WINDOW_TYPE.Popup, name = 'Configuration', layout = configure_layout)  
         config_event, config_values = config_window.read()
         if config_event == 'Ok':   
             info.update_compiler(config_values[0])
             info.update_demangler(config_values[1])
+            info.update_flags(config_values[2])
+            info.update_abi(config_values[3])
+            info.update_arch(config_values[4])
         
         config_window.close()
         
 class Tools:
+    rtl_files = None
     @staticmethod
     def handle(event, info):
+
+        if Tools.rtl_files is not None and event in Tools.rtl_files:
+            Tools.handle_rtl_listbox(event, info)
+
         if event is not None and 'Dump' in event:
             my_file = info.get_file()
             if my_file is None:
@@ -168,6 +174,7 @@ class Tools:
             if info.file_is_modified:
                 info.run_make("app")
 
+
         if event in ('Dump assembly', ):
             Tools.handle_dump_assembly(event, info)
         elif event in ('Dump SSA', ):
@@ -178,6 +185,8 @@ class Tools:
             Tools.handle_dump_gimple(event, info)
         elif event in ('Dump low level GIMPLE', ):
             Tools.handle_dump_lower_gimple(event, info)
+        elif event in ('Dump RTL', ):
+            Tools.handle_dump_rtl(event, info)
         else:
             return False
 
@@ -185,47 +194,39 @@ class Tools:
 
     @staticmethod
     def handle_dump_assembly(event, info):
-        # info.run_make("assembly")
         assembly_file = pathlib.Path(info.get_output_dir() + "assembly.s")
         if not assembly_file.exists():
             print("Error in building from makefile")
             return
-        # sg.popup_non_blocking('Assembly', assembly_file.read_text())
-        sg_show_scrollable_text(assembly_file, 'Assembly')
-        
+
+        window_factory.make_multiline_popup('Assembly', assembly_file)
 
     @staticmethod
     def handle_dump_gimple(event, info):
-        # info.run_make("high-gimple")
         gimple_file = pathlib.Path(info.get_output_dir() + info.get_filename() + ".gimple")
         if not gimple_file.exists():
             print("Error in building from makefile")
             return
-        
-        sg_show_scrollable_text(gimple_file, 'Gimple')
-        # sg.popup_non_blocking('Gimple', gimple_file.read_text())
-    
+
+        window_factory.make_multiline_popup('Gimple', gimple_file)
+
     @staticmethod
     def handle_dump_lower_gimple(event, info):
-        # info.run_make("lower-gimple")
         gimple_file = pathlib.Path(info.get_output_dir() + info.get_filename() + ".gimple.lower")
         if not gimple_file.exists():
             print("Error in building from makefile")
             return
         
-        sg_show_scrollable_text(gimple_file, 'Lower Gimple')
-        # sg.popup_non_blocking('Lower Gimple', gimple_file.read_text())
+        window_factory.make_multiline_popup('Lower Gimple', gimple_file)
 
     @staticmethod
     def handle_dump_cfg(event, info):
-        # info.run_make("cfg")
         cfg_file = pathlib.Path(info.get_output_dir() + info.get_filename() + ".cfg")
         if not cfg_file.exists():
             print("Error in building from makefile")
             return
 
-        sg_show_scrollable_text(cfg_file, 'CFG')
-        # sg.popup_non_blocking('CFG', cfg_file.read_text())
+        window_factory.make_multiline_popup('CFG', cfg_file)
 
     @staticmethod
     def handle_dump_ssa(event, info):
@@ -234,5 +235,23 @@ class Tools:
             print("Error in building SSA from makefile")
             return
 
-        sg_show_scrollable_text(ssa_file, 'SSA')
-        # sg.popup_non_blocking('SSA', ssa_file.read_text())
+        window_factory.make_multiline_popup('SSA', ssa_file)
+
+    @staticmethod
+    def handle_dump_rtl(event, info):
+        files = pathlib.Path(info.get_output_dir() + "rtl").glob(info.get_filename()+".*")
+        # get { pass_index : path }
+        Tools.rtl_files = {f : f.name.split('.')[-2] for f in files if f.is_file()}
+        # get { passname : path }
+        Tools.rtl_files = {f.name[f.name.rfind('.') + 1 : len(f.name)] : f for f, _ in sorted(Tools.rtl_files.items(), key=lambda item: item[1])}
+        info.load_rtl_window(window_factory.make_listbox(list(Tools.rtl_files.keys()), "Select RTL pass", "RTL"))
+
+    @staticmethod 
+    def handle_rtl_listbox(event, info):
+        rtl_file = Tools.rtl_files[event]
+
+        if not rtl_file.exists():
+            print("Error in reading rtl file")
+            return
+        
+        window_factory.make_multiline_popup("RTL - " + event, rtl_file)
