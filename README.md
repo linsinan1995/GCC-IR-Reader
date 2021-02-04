@@ -6,8 +6,9 @@ A simple to for generate and view the intermediate representation code in GCC.
 
 ## to do
 
--[x] rtl
--[] redesign : multithread & window control
+- [x] Dump RTL
+
+- [ ] redesign : multithread & window control
 
 ## run
 
