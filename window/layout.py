@@ -90,3 +90,32 @@ main_window_layout = [
         )
     ]
 ]
+
+# Layout of configure window 
+def gen_configure_layout(info):
+    return  [
+                [
+                    sg.Text('Compiler', size=(15, 1)), 
+                    sg.InputText(default_text = info.get_compiler())
+                ],
+                [
+                    sg.Text('C++Filter', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_demangler())
+                ],
+                [
+                    sg.Text('CFLAG', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_flags())
+                ],
+                [
+                    sg.Text('ABI', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_abi())
+                ],
+                [
+                    sg.Text('ARCH', size = (15, 1)), 
+                    sg.InputText(default_text = info.get_arch())
+                ],
+                [
+                    sg.Button('Ok'), 
+                    sg.Cancel()
+                ]
+            ]

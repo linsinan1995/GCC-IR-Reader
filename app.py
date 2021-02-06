@@ -79,7 +79,7 @@ class Info:
                 self.rtl_window = None
                 return event
             else:
-                if value is not None and value['RTL'] is not None:
+                if 'RTL' in value and value['RTL'] is not None:
                     return value['RTL'][0]
                 else:
                     self.rtl_window.close()

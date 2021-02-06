@@ -33,6 +33,15 @@ class window_factory:
         return sg.Window(name, layout, resizable=True, auto_size_buttons=True, grab_anywhere=True).read(timeout=10)
 
     @staticmethod
+    def make_multiline_popup_layout(name, layout):
+        return sg.Window(name, layout, resizable=True, auto_size_buttons=True, grab_anywhere=True)
+
+
+    @staticmethod
     def make_listbox(options, text, titile):
         layout = gen_listbox_layout(text, options)
         return sg.Window(titile, layout, resizable=True, auto_size_buttons=True, grab_anywhere=True)
+
+    @staticmethod
+    def make_dot_window():
+        pass

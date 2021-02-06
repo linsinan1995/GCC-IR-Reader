@@ -12,7 +12,7 @@ A simple to for generate and view the intermediate representation code in GCC.
 ## run
 
 ```
-sudo apt-get install python3-tk 
+sudo apt-get install python3-tk graphviz
 pip3 install pysimplegui
 ```
 

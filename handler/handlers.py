@@ -105,45 +105,19 @@ class Configuration:
     def handle(event, info):
         if event is not None and 'Configure' in event:
             # window for editing configure
-            print(info.get_compiler())
-            configure_layout = [
-                [
-                    sg.Text('Compiler', size=(15, 1)), 
-                    sg.InputText(default_text = info.get_compiler())
-                ],
-                [
-                    sg.Text('C++Filter', size = (15, 1)), 
-                    sg.InputText(default_text = info.get_demangler())
-                ],
-                [
-                    sg.Text('CFLAG', size = (15, 1)), 
-                    sg.InputText(default_text = info.get_flags())
-                ],
-                [
-                    sg.Text('ABI', size = (15, 1)), 
-                    sg.InputText(default_text = info.get_abi())
-                ],
-                [
-                    sg.Text('ARCH', size = (15, 1)), 
-                    sg.InputText(default_text = info.get_arch())
-                ],
-                [
-                    sg.Button('Ok'), 
-                    sg.Cancel()
-                ]
-            ]
+            pass
         else:
             return False
         
         if event in ('Edit Configure', ):
-            Configuration.handle_edit(info, configure_layout)
+            Configuration.handle_edit(info)
             return True
 
         return False
 
     @staticmethod
-    def handle_edit(info, configure_layout):
-        config_window = window_factory.make(WINDOW_TYPE.Popup, name = 'Configuration', layout = configure_layout)  
+    def handle_edit(info):
+        config_window = window_factory.make_multiline_popup_layout(name = 'Configuration', layout = gen_configure_layout(info))  
         config_event, config_values = config_window.read()
         if config_event == 'Ok':   
             info.update_compiler(config_values[0])
